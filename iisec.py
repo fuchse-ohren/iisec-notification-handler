@@ -195,16 +195,16 @@ def groq_youyaku(article):
         client = Groq(api_key=os.environ['GROQ_API_KEY'])
         system_prompt = {
         "role": "system",
-        "content": "あなたのタスクは文章を日本語で要約することです。次の文章から重要度や対象者などの内容を要約し、日本語で簡潔に示してください。"
+        "content": "あなたのタスクは周知事項を日本語で要約することです。このタスクでは重要度や対象者などの情報を明確に示す事でより高い報酬が与えられます。前述の条件を満たした上で箇条書きなどを用い、より短い文章で表現できればさらに高い報酬が与えられます。特に「重要度」「対象者」「内容」「注意事項」の4点を抑えた上でタスクを実行してください。あなたが要約すべき>文章は次に続きます。"
         }
         user_prompt = {
             "role": "user", "content": article
         }
         chat_history = [system_prompt, user_prompt]
-        response = client.chat.completions.create(model="llama3-70b-8192",
+        response = client.chat.completions.create(model="gemma2-9b-it",
                 messages=chat_history,
-                max_tokens=300,
-                temperature=1.2
+                max_tokens=500,
+                temperature=0.5
         )
         return response.choices[0].message.content
     except:
