@@ -146,7 +146,7 @@ class siss_handler:
             # 構造化
             article = BeautifulSoup(res.data.decode(),'html.parser')
 
-            return article.find('div',class_="maincontents").get_text()
+            return article.find('div',class_="contents_user").get_text()
         except:
             return "本文の取得に失敗しました。「要約は利用できません」と返答してください。"
 
@@ -176,20 +176,6 @@ def add_notice_to_db(notice_id):
     conn.commit()
     conn.close()
 
-# お知らせを取得し、データベースにない新しいお知らせのみ表示
-def display_latest_notices(handler, notice_type='class-master'):
-    return_text = ""
-    notices = handler.get_notice(type=notice_type)
-
-    for notice in notices:
-        if is_notice_new(notice['id']):
-            # 新しいお知らせだけ表示
-            return_text += str("```カテゴリ: %s\n日付:    %s\n題名:    %s\nリンク:  %s```\n"%(notice['category'],notice['date'],notice['title'],notice['link']))
-            add_notice_to_db(notice['id'])
-        else:
-            pass
-    return return_text
-
 def groq_youyaku(article):
     try:
         client = Groq(api_key=os.environ['GROQ_API_KEY'])
@@ -216,10 +202,12 @@ def send_latest_notices(handler, notice_type='class-master'):
     for notice in notices:
         if is_notice_new(notice['id']):
             # 新しいお知らせがある場合
+            add_notice_to_db(notice['id'])
 
             # 要約を作成
+            youyaku = ''
             article = handler.get_article(notice['id'])
-            youyaku = groq_youyaku(article)
+            youyaku = groq_youyaku(article).replace("*","")
 
             # Webhookで送信
             webhook_url = os.environ['DISCORD_WEBHOOK']
