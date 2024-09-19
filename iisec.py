@@ -1,6 +1,11 @@
 import urllib3,re,sqlite3,json,os
+from datetime import datetime
 from bs4 import BeautifulSoup
 from groq import Groq
+
+def log(arg):
+    print("[%s] "%(datetime.now().isoformat()),end="")
+    print(arg)
 
 class siss_handler:
     base_url = 'https://siss.iisec.ac.jp'
@@ -13,41 +18,48 @@ class siss_handler:
         res = http.request('GET', self.base_url+'/page.login/index.php',headers={"User-Agemt":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0"})
         self.session_id = res.headers['Set-Cookie'].split(';')[0]
 
-        # ログイン処理
-        method = 'POST'
-        url = self.base_url + '/page.login/index.php'
-        headers = {
-            "Content-Type":" application/x-www-form-urlencoded",
-            "Cookie": self.session_id,
-            "User-Agemt":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0"
-        }
-        body = "auth_name="+id+"&auth_password="+pw
-        res = http.request(method, url,headers=headers,body=body.encode(),redirect=False)
-
         try:
+            # ログイン処理
+            method = 'POST'
+            url = self.base_url + '/page.login/index.php'
+            headers = {
+                "Content-Type":" application/x-www-form-urlencoded",
+                "Cookie": self.session_id,
+                "User-Agemt":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0"
+            }
+            body = "auth_name="+id+"&auth_password="+pw
+            res = http.request(method, url,headers=headers,body=body.encode(),redirect=False)
+
             if res.status != 302 :
                 raise Exception()
+
             self.session_id = res.headers['Set-Cookie'].split(';')[0]
+            log("学生情報サービスシステムへのログインに成功")
         except:
+            log("学生情報サービスシステムへのログインに失敗")
             raise Exception("ログインに失敗しました")
 
         # コンテンツ取得
-        method = 'GET'
-        url = self.base_url + '/page.view/article.php?symbol=toppage'
-        headers = {
-            "Cookie": self.session_id,
-            "User-Agemt":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0"
-        }
-        res = http.request(method, url,headers=headers,redirect=False)
-        if res.status != 200:
-            print(res.data.decode())
-            print(res.url)
-            print(res.headers)
-            raise Exception("情報の取得に失敗しました")
+        try:
+            method = 'GET'
+            url = self.base_url + '/page.view/article.php?symbol=toppage'
+            headers = {
+                "Cookie": self.session_id,
+                "User-Agemt":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0"
+            }
+            res = http.request(method, url,headers=headers,redirect=False)
+            if res.status != 200:
+                log(res.data.decode())
+                log(res.url)
+                log(res.headers)
+                raise Exception("情報の取得に失敗しました")
 
-        # 構造化
-        self.document = BeautifulSoup(res.data.decode(),'html.parser')
-
+            # bs4による解析
+            self.document = BeautifulSoup(res.data.decode(),'html.parser')
+            log("お知らせの一覧取得に成功")
+        except:
+            log("お知らせの一覧取得に失敗")
+            exit()
 
     def get_notice(self,*args,**kwargs):
 
@@ -123,7 +135,7 @@ class siss_handler:
             return notifications
 
         except Exception as e:
-            print(e)
+            log(e)
             exit()
 
     def get_article(self,id):
@@ -138,16 +150,18 @@ class siss_handler:
             }
             res = http.request(method, url,headers=headers,redirect=False)
             if res.status != 200:
-                print(res.data.decode())
-                print(res.url)
-                print(res.headers)
+                log(res.data.decode())
+                log(res.url)
+                log(res.headers)
                 raise Exception("情報の取得に失敗しました")
 
             # 構造化
             article = BeautifulSoup(res.data.decode(),'html.parser')
 
+            log("本文の取得に成功(id:%s)"%(id))
             return article.find('div',class_="contents_user").get_text()
         except:
+            log("本文の取得に失敗(id:%s)"%(id))
             return "本文の取得に失敗しました。「要約は利用できません」と返答してください。"
 
 # データベースの初期化
@@ -192,8 +206,10 @@ def groq_youyaku(article):
                 max_tokens=500,
                 temperature=0.5
         )
+        log("Groqによる要約の生成に成功")
         return response.choices[0].message.content
     except:
+        log("Groqによる要約の生成に失敗")
         return "要約は利用できません"
 
 def send_latest_notices(handler, notice_type='class-master'):
@@ -203,6 +219,7 @@ def send_latest_notices(handler, notice_type='class-master'):
         if is_notice_new(notice['id']):
             # 新しいお知らせがある場合
             add_notice_to_db(notice['id'])
+            log("新しいお知らせ: %s"%(notice['id']))
 
             # 要約を作成
             youyaku = ''
@@ -224,16 +241,24 @@ def send_latest_notices(handler, notice_type='class-master'):
                 headers={"Content-Type": "application/json", "Content-Disposition": "form-data"},
                 body=json.dumps(json_data).encode()
             )
-            print(json_data)
-            print(res.data.decode())
+            log(json_data)
+            log(res.data.decode())
 
 
-# DBを初期化する
-init_db()
-# ハンドラを初期化する
-handler = siss_handler(os.environ['IISEC_ID'],os.environ['IISEC_PW'])
+if __name__ == '__main__':
+    log("ジョブを開始しました")
+    try:
+        # DBを初期化する
+        init_db()
+        # ハンドラを初期化する
+        handler = siss_handler(os.environ['IISEC_ID'],os.environ['IISEC_PW'])
 
-# すべてのお知らせを取得
-categories = ['class-master','class-doctor','class-common','class-cancelled','school-events','student-loan','call','recruit','others','updates']
-for category in categories:
-    send_latest_notices(handler,notice_type=category)
+        # すべてのお知らせを取得
+        categories = ['class-master','class-doctor','class-common','class-cancelled','school-events','student-loan','call','recruit','others','updates']
+        for category in categories:
+            send_latest_notices(handler,notice_type=category)
+    except Exception as e:
+        log("例外が発生しました")
+        log(e)
+        pass
+    log("ジョブを終了しました")
