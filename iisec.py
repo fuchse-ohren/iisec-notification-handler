@@ -287,8 +287,8 @@ def send_to_slack(category,date,title,link,youyaku,article,links):
 
     # リンクのリストをテキストに展開する
     links_str = ""
-    for link in links:
-        links_str += f"- <{link['uri']}|{link['title']}>\n"
+    for i in links:
+        links_str += f"- <{i['uri']}|{i['title']}>\n"
 
     # フォーマットに従ってSlackの投稿を作成
     # https://app.slack.com/block-kit-builder
