@@ -1,4 +1,4 @@
-import urllib3,re,sqlite3,json,os
+import urllib3,re,requests,pdfplumber,sqlite3,json,os
 from urllib.parse import urljoin
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -142,6 +142,37 @@ class siss_handler:
             log(e)
             exit()
 
+    def read_pdf(self,uri):
+        try:
+            # pdfファイルを保存
+            headers = {
+                "Cookie": self.session_id,
+                "User-Agemt":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0"
+            }
+            response = requests.get(uri, headers=headers, stream=True, verify=False)
+            response.raise_for_status()
+            filename = './tmp.pdf'
+            with open(filename, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            # pdfファイルをテキスト化
+            content = ""
+            with pdfplumber.open(filename) as pdf:
+                for page in pdf.pages:
+                    t = page.extract_text()
+                    if t:
+                        content += t
+            
+            os.remove('./tmp.pdf')
+            return t
+        
+
+        except Exception as e:
+            os.remove('./tmp.pdf')
+            return None
+
+
     def get_article(self,id):
         try:
             # コンテンツ取得
@@ -175,7 +206,11 @@ class siss_handler:
                 inner_text = link.get_text().replace("\n","").replace("\r","")
                 if href != None and inner_text != "":
                     href = urljoin(self.base_url, href)
-                    links_list.append({"uri":href,"title":inner_text})
+                    if href[-3:] == 'pdf': #pdfドキュメントの場合
+                        content = self.read_pdf(href)
+                        links_list.append({"uri":href,"title":inner_text,"content":content})
+                    else:
+                        links_list.append({"uri":href,"title":inner_text,"content":None})
 
             return article_str,links_list
         except Exception as e:
@@ -288,7 +323,10 @@ def send_to_slack(category,date,title,link,youyaku,article,links):
     # リンクのリストをテキストに展開する
     links_str = ""
     for i in links:
-        links_str += f"- <{i['uri']}|{i['title']}>\n"
+        if i['summary'] != None:
+            links_str += f"- <{i['uri']}|{i['title']}>\n```{i['summary']}```\n\n"
+        else:
+            links_str += f"- <{i['uri']}|{i['title']}>\n"
 
     # フォーマットに従ってSlackの投稿を作成
     # https://app.slack.com/block-kit-builder
@@ -303,12 +341,14 @@ def send_to_slack(category,date,title,link,youyaku,article,links):
     try:
         webhook_url = os.environ['SLACK_WEBHOOK']
         http = urllib3.PoolManager()
+
+        #print(json.dumps(template))
         res = http.request(
             "POST",
             webhook_url,
             headers={"Content-Type": "application/json"},
             body=json.dumps(template).encode()
-        )
+            )
         log("Slackへの投稿に成功しました")
     except:
         log("Slackへの投稿に失敗しました")
@@ -323,12 +363,20 @@ def send_latest_notices(handler, notice_type='class-master'):
             add_notice_to_db(notice['id'])
             log("新しいお知らせ: %s"%(notice['id']))
 
-            # 要約を作成
-            youyaku = ''
+            # 記事の取得
             article,links = handler.get_article(notice['id'])
             article = re.sub('\n{2,}','\n\n',article) # 余計な改行の削除
             article = re.sub(r'[^\S\n\r]+',' ',article) # 余計な空白の削除
+
+            # 本文の要約を作成
+            youyaku = ''
             youyaku = local_youyaku(article).replace("*","").replace("#","")
+
+            # 添付ファイルの要約を作成
+            for i in links:
+                i["summary"] = local_youyaku(i["content"]).replace("*","").replace("#","")
+
+            # Slackに投稿
             data = f"\n🔖カテゴリ: {notice['category']}\n📅日付: {notice['date']}\n📋題名: {notice['title']}\n🌐リンク: {notice['link']}\n🦊要約: ```{youyaku}```\n\n"
             send_to_discord(data)
             send_to_slack(notice['category'],notice['date'],notice['title'],notice['link'],youyaku,article,links)
