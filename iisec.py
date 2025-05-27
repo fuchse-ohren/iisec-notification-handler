@@ -177,6 +177,9 @@ class siss_handler:
                     href = urljoin(self.base_url, href)
                     links_str += f"- <{href}|{inner_text}>\n"
 
+            if links_str == "":
+                links_str = "リンクはありません"
+
             return article_str,links_str
         except Exception as e:
             print(e)
@@ -285,11 +288,13 @@ def send_to_discord(message):
 
 def send_to_slack(category,date,title,link,youyaku,article,links):
 
+    replace_if_empty = lambda s: '-' if s == '' else s
+
     template = json.loads('{"blocks":[{"type":"header","text":{"type":"plain_text","text":"【ISS2】7月26日全体会合(合同研究分科会)[対面型]開催について","emoji":true}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"🔖カテゴリ:📅日付:📋記事:<http://url|text>"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"🦊要約:```test```"}},{"type":"divider"},{"type":"section","text":{"type":"plain_text","text":"📎リンク一覧","emoji":true}},{"type":"section","text":{"type":"mrkdwn","text":"-<https://google.com|Google>-<https://google.com|Google>"}},{"type":"divider"}]}')
-    template['blocks'][0]['text']['text'] = title
+    template['blocks'][0]['text']['text'] = replace_if_empty(title)
     template['blocks'][2]['text']['text'] = f"🔖カテゴリ: {category}\n📅日付: {date}\n📋記事:<{link}|{title}>"
     template['blocks'][4]['text']['text'] = f'🦊要約:```{youyaku}```'
-    template['blocks'][7]['text']['text'] = links
+    template['blocks'][7]['text']['text'] = replace_if_empty(links)
 
     # Webhookで送信
     try:
@@ -301,6 +306,7 @@ def send_to_slack(category,date,title,link,youyaku,article,links):
             headers={"Content-Type": "application/json"},
             body=json.dumps(template).encode()
         )
+        log("Slackへの投稿に成功しました")
     except:
         log("Slackへの投稿に失敗しました")
 
