@@ -1,2 +1,4 @@
 notices.db
 log.txt
+model/*
+!model
