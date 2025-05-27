@@ -293,8 +293,6 @@ def clean_text(text):
 
 # Discordに通知を送信
 def send_to_discord(category,date,title,link,summary,article,links):
-
-    log('init')
     # 埋め込みを作成
     embeds = []
     if len(links) == 0:
@@ -398,7 +396,7 @@ def send_latest_notices(slm, handler, notice_type='class-master'):
                     
             # Slackに投稿
             send_to_discord(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
-            #send_to_slack(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
+            send_to_slack(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
 
 if __name__ == '__main__':
     log("ジョブを開始しました")
