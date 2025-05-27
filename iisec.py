@@ -1,4 +1,5 @@
 import urllib3,re,sqlite3,json,os
+from urllib.parse import urljoin
 from datetime import datetime
 from bs4 import BeautifulSoup
 from groq import Groq
@@ -160,12 +161,27 @@ class siss_handler:
 
             # 構造化
             article = BeautifulSoup(res.data.decode(),'html.parser')
+            article = article.find('div',class_="contents_user")
 
+            # 本文の取得
+            article_str = article.get_text()
             log("本文の取得に成功(id:%s)"%(id))
-            return article.find('div',class_="contents_user").get_text()
-        except:
+            
+            # リンクの取得
+            links_str = ""
+            links = article.find_all('a')
+            for link in links:
+                href = link.get('href')
+                inner_text = link.get_text().replace("\n","").replace("\r","")
+                if href != None and inner_text != "":
+                    href = urljoin(self.base_url, href)
+                    links_str += f"- <{href}|{inner_text}>\n"
+
+            return article_str,links_str
+        except Exception as e:
+            print(e)
             log("本文の取得に失敗(id:%s)"%(id))
-            return "本文の取得に失敗しました。「要約は利用できません」と返答してください。"
+            return "本文の取得に失敗しました。「要約は利用できません」と返答してください。",""
 
 # データベースの初期化
 def init_db():
@@ -267,21 +283,23 @@ def send_to_discord(message):
     except:
         log("Discordへの投稿に失敗しました")
 
-def send_to_slack(message):
+def send_to_slack(category,date,title,link,youyaku,article,links):
+
+    template = json.loads('{"blocks":[{"type":"header","text":{"type":"plain_text","text":"【ISS2】7月26日全体会合(合同研究分科会)[対面型]開催について","emoji":true}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"🔖カテゴリ:📅日付:📋記事:<http://url|text>"}},{"type":"divider"},{"type":"section","text":{"type":"mrkdwn","text":"🦊要約:```test```"}},{"type":"divider"},{"type":"section","text":{"type":"plain_text","text":"📎リンク一覧","emoji":true}},{"type":"section","text":{"type":"mrkdwn","text":"-<https://google.com|Google>-<https://google.com|Google>"}},{"type":"divider"}]}')
+    template['blocks'][0]['text']['text'] = title
+    template['blocks'][2]['text']['text'] = f"🔖カテゴリ: {category}\n📅日付: {date}\n📋記事:<{link}|{title}>"
+    template['blocks'][4]['text']['text'] = f'🦊要約:```{youyaku}```'
+    template['blocks'][7]['text']['text'] = links
+
     # Webhookで送信
     try:
         webhook_url = os.environ['SLACK_WEBHOOK']
         http = urllib3.PoolManager()
-
-        json_data = {
-                "text": message
-        }
-
         res = http.request(
             "POST",
             webhook_url,
             headers={"Content-Type": "application/json"},
-            body=json.dumps(json_data).encode()
+            body=json.dumps(template).encode()
         )
     except:
         log("Slackへの投稿に失敗しました")
@@ -298,13 +316,13 @@ def send_latest_notices(handler, notice_type='class-master'):
 
             # 要約を作成
             youyaku = ''
-            article = handler.get_article(notice['id'])
+            article,links = handler.get_article(notice['id'])
             article = re.sub('\n{2,}','\n\n',article) # 余計な改行の削除
             article = re.sub(r'[^\S\n\r]+',' ',article) # 余計な空白の削除
             youyaku = local_youyaku(article).replace("*","").replace("#","")
             data = f"\n🔖カテゴリ: {notice['category']}\n📅日付: {notice['date']}\n📋題名: {notice['title']}\n🌐リンク: {notice['link']}\n🦊要約: ```{youyaku}```\n\n"
             send_to_discord(data)
-            send_to_slack(data)
+            send_to_slack(notice['category'],notice['date'],notice['title'],notice['link'],youyaku,article,links)
 
 if __name__ == '__main__':
     log("ジョブを開始しました")
