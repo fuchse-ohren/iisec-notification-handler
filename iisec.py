@@ -369,49 +369,56 @@ def send_to_slack(category,date,title,link,summary,article,links):
     except:
         log("Slackへの投稿に失敗しました")
 
-def send_latest_notices(slm, handler, notice_type='class-master'):
-    notices = handler.get_notice(type=notice_type)
-
-    for notice in notices:
-        if is_notice_new(notice['id']):
-            # 新しいお知らせがある場合
-            add_notice_to_db(notice['id'])
-            log("新しいお知らせ: %s"%(notice['id']))
-
-            # 記事の取得
-            article,links = handler.get_article(notice['id'])
-            article = clean_text(article)
-
-            # 本文の要約を作成
-            summary = ''
-            summary = slm.summarize(article).replace("*","").replace("#","")
-            summary = clean_text(summary)
-
-            # 添付ファイルの要約を作成
-            for i in links:
-                if i['content'] != None:
-                    i["summary"] = clean_text(slm.summarize(i["content"]).replace("*","").replace("#",""))
-                else:
-                    i["summary"] = None
-                    
-            # Slackに投稿
-            send_to_discord(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
-            send_to_slack(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
 
 if __name__ == '__main__':
     log("ジョブを開始しました")
     try:
         # DBを初期化する
         init_db()
-        # ハンドラを初期化する
-        handler = siss_handler(os.environ['IISEC_ID'],os.environ['IISEC_PW'])
-        # SLMサマライザを初期化する
-        slm = summarizer()
 
-        # すべてのお知らせを取得
+        # スクレイピングハンドラを初期化する
+        handler = siss_handler(os.environ['IISEC_ID'],os.environ['IISEC_PW'])
+
+        # お知らせ一覧を取得
+        notices = []
         categories = ['class-master','class-doctor','class-common','class-cancelled','school-events','student-loan','call','recruit','others','updates']
         for category in categories:
-            send_latest_notices(slm,handler,notice_type=category)
+            for notice in handler.get_notice(type=category):
+                if is_notice_new(notice['id']): # 新規のお知らせのみを抽出
+                    notices.append(notice)
+                    log("新しいお知らせ: %s"%(notice['id']))
+
+        if len(notices) > 0:
+            # SLMサマライザを初期化する
+            slm = summarizer()
+
+            for notice in notices:
+                log("処理開始: %s"%(notice['id']))
+                # 本文の取得
+                article,links = handler.get_article(notice['id'])
+                article = clean_text(article)
+
+                # 本文の要約
+                summary = ""
+                summary = slm.summarize(article).replace("*","").replace("#","")
+                summary = clean_text(summary)
+
+                # リンク先PDFの要約
+                for i in links:
+                    if i['content'] != None:
+                        i["summary"] = clean_text(slm.summarize(i["content"]).replace("*","").replace("#",""))
+                    else:
+                        i["summary"] = None
+
+                # Webhookで投稿
+                send_to_discord(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
+                send_to_slack(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
+
+                # 完了済みリストに追加
+                add_notice_to_db(notice['id'])
+                log("処理が完了しました: %s"%(notice['id']))
+
+
     except Exception as e:
         log("例外が発生しました")
         log(e)
