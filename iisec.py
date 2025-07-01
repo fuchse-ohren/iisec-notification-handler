@@ -336,7 +336,13 @@ def send_to_discord(category,date,title,link,summary,article,links):
             headers={"Content-Type": "application/json", "Content-Disposition": "form-data"},
             body=json.dumps(template).encode()
         )
-        log("Discordへの投稿に成功しました")
+
+        # 送信に成功したかチェック
+        log(f"Webhookの応答: {res.status}")
+        if res.status != 200:
+            raise Exception(res.status)
+        else:
+            log("Discordへの投稿に成功しました")
     except:
         log("Discordへの投稿に失敗しました")
 
