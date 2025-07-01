@@ -255,7 +255,7 @@ class summarizer:
 
 # データベースの初期化
 def init_db():
-    conn = sqlite3.connect('notices.db')
+    conn = sqlite3.connect('./db/notices.db')
     cursor = conn.cursor()
     # お知らせIDを保存するテーブルを作成
     cursor.execute('''CREATE TABLE IF NOT EXISTS notices (id TEXT PRIMARY KEY)''')
@@ -271,7 +271,7 @@ def is_notice_new(notice_id):
             log("NOT_BEFORE_ID制約によりチェックを停止しました")
             return False
 
-    conn = sqlite3.connect('notices.db')
+    conn = sqlite3.connect('./db/notices.db')
     cursor = conn.cursor()
     cursor.execute('SELECT id FROM notices WHERE id = ?', (notice_id,))
     result = cursor.fetchone()
@@ -281,7 +281,7 @@ def is_notice_new(notice_id):
 
 # 新しいお知らせをデータベースに追加
 def add_notice_to_db(notice_id):
-    conn = sqlite3.connect('notices.db')
+    conn = sqlite3.connect('./db/notices.db')
     cursor = conn.cursor()
     cursor.execute('INSERT INTO notices (id) VALUES (?)', (notice_id,))
     conn.commit()
