@@ -411,8 +411,10 @@ if __name__ == '__main__':
                         i["summary"] = None
 
                 # Webhookで投稿
-                send_to_discord(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
-                send_to_slack(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
+                if(os.environ.get("DISCORD_WEBHOOK") != None):
+                    send_to_discord(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
+                if(os.environ.get("SLACK_WEBHOOK") != None):
+                    send_to_slack(notice['category'],notice['date'],notice['title'],notice['link'],summary,article,links)
 
                 # 完了済みリストに追加
                 add_notice_to_db(notice['id'])
