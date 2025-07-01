@@ -341,9 +341,9 @@ def send_to_discord(category,date,title,link,summary,article,links):
 
         # 送信に成功したかチェック
         if res.status >= 200 and res.status <= 299:
-            raise Exception(res.status)
-        else:
             log("Discordへの投稿に成功しました")
+        else:
+            raise Exception(res.status)
     except:
         log(f"Discordへの投稿に失敗しました．status:{res.status}")
 
