@@ -340,13 +340,12 @@ def send_to_discord(category,date,title,link,summary,article,links):
         )
 
         # 送信に成功したかチェック
-        log(f"Webhookの応答: {res.status}")
-        if res.status != 200:
+        if res.status >= 200 and res.status <= 299:
             raise Exception(res.status)
         else:
             log("Discordへの投稿に成功しました")
     except:
-        log("Discordへの投稿に失敗しました")
+        log(f"Discordへの投稿に失敗しました．status:{res.status}")
 
 
 # Slackに通知を送信
@@ -379,9 +378,13 @@ def send_to_slack(category,date,title,link,summary,article,links):
             headers={"Content-Type": "application/json"},
             body=json.dumps(template).encode()
             )
-        log("Slackへの投稿に成功しました")
+
+        if res.status <= 200 and res.status >= 299:
+            log("Slackへの投稿に成功しました")
+        else:
+            raise Exception("res.status")
     except:
-        log("Slackへの投稿に失敗しました")
+        log(f"Slackへの投稿に失敗しました．status: {res.status}")
 
 
 if __name__ == '__main__':
