@@ -267,7 +267,7 @@ def init_db():
 def is_notice_new(notice_id):
 
     if(os.environ.get("NOT_BEFORE_ID") != None):
-        if notice_id <= int(os.environ["NOT_BEFORE_ID"]):
+        if int(notice_id) <= int(os.environ["NOT_BEFORE_ID"]):
             log("NOT_BEFORE_ID制約によりチェックを停止しました")
             return False
 
