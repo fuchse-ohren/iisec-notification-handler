@@ -1,0 +1,17 @@
+services:
+  iisec-notification-handler:
+    image: iisec-notification
+    volumes:
+      - db:/usr/src/app/db
+    build:
+      dockerfile: ./Dockerfile
+    environment:
+      IISEC_ID: ""
+      IISEC_PW: ""
+      MODEL_PATH: "./model/tinyswallow-1.5b-instruct-q8_0.gguf"
+      DISCORD_WEBHOOK: 
+      SLACK_WEBHOOK:
+      NOT_BEFORE_ID:
+
+volumes:
+  db:
