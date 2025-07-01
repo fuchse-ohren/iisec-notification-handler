@@ -307,19 +307,21 @@ def send_to_discord(category,date,title,link,summary,article,links):
             'color': 15174544
             })
     for i in links:
-        if i['summary'] != None:
-            embeds.append({
-                'title': i['title'],
-                'description': i['summary'],
-                'url': i['uri'],
-                'color': 15174544
-                })
-        else:
-            embeds.append({
-                'title': i['title'],
-                'url': i['uri'],
-                'color': 15174544
-                })
+        # Discordはhttpもしくはhttpsの埋め込みしか貼れない
+        if i['uri'][:8] == "https://" or i['uri'][:7] == "http://":
+            if i['summary'] != None:
+                embeds.append({
+                    'title': i['title'],
+                    'description': i['summary'],
+                    'url': i['uri'],
+                    'color': 15174544
+                    })
+            else:
+                embeds.append({
+                    'title': i['title'],
+                    'url': i['uri'],
+                    'color': 15174544
+                    })
 
     template = json.loads('{"content":"","embeds":[],"attachments":[]}')
     template['content'] = f'# {title}\n🔖カテゴリ: {category}\n📅日付: {date}\n📋記事: [{title}]({link})\n🦊要約:```{summary}```\n\n📎リンク一覧:'
