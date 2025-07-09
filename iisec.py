@@ -1,4 +1,4 @@
-import urllib3,re,requests,pdfplumber,sqlite3,json,os
+import urllib3,re,requests,pdfplumber,sqlite3,json,logging,os
 from urllib.parse import urljoin
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -7,9 +7,17 @@ from llama_cpp import Llama
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def log(arg):
-    print("[%s] "%(datetime.now().isoformat()),end="")
-    print(arg)
+logging.basicConfig(
+    '''
+    info: デバッグや動作ログなど
+    error: 処理の続行が可能なエラー
+    warning: 処理の続行が可能な重度のエラー
+    critical: 発生した時点でプログラムを停止させるようなエラー
+    '''
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 class siss_handler:
     base_url = 'https://siss.iisec.ac.jp'
@@ -38,10 +46,10 @@ class siss_handler:
                 raise Exception()
 
             self.session_id = res.headers['Set-Cookie'].split(';')[0]
-            log("学生情報サービスシステムへのログインに成功")
+            logging.info("学生情報サービスシステムへのログインに成功")
         except:
-            log("学生情報サービスシステムへのログインに失敗")
-            raise Exception("ログインに失敗しました")
+            logging.critical("学生情報サービスシステムへのログインに失敗")
+            raise Exception()
 
         # コンテンツ取得
         try:
@@ -53,16 +61,13 @@ class siss_handler:
             }
             res = http.request(method, url,headers=headers,redirect=False)
             if res.status != 200:
-                log(res.data.decode())
-                log(res.url)
-                log(res.headers)
-                raise Exception("情報の取得に失敗しました")
+                logging.critical(f"お知らせの一覧取得に失敗しました\nURL:{res.url}\nヘッダ: {res.headers}\nレスポンス:{res.data.decode()}")
+                raise Exception()
 
             # bs4による解析
             self.document = BeautifulSoup(res.data.decode(),'html.parser')
-            log("お知らせの一覧取得に成功")
+            logging.info("お知らせの一覧取得に成功")
         except:
-            log("お知らせの一覧取得に失敗")
             exit()
 
     def get_notice(self,*args,**kwargs):
@@ -139,7 +144,7 @@ class siss_handler:
             return notifications
 
         except Exception as e:
-            log(e)
+            logging.critical(f"お知らせの抽出時に例外が発生しました．\n例外:{e}")
             exit()
 
     def read_pdf(self,uri):
@@ -185,10 +190,8 @@ class siss_handler:
             }
             res = http.request(method, url,headers=headers,redirect=False)
             if res.status != 200:
-                log(res.data.decode())
-                log(res.url)
-                log(res.headers)
-                raise Exception("情報の取得に失敗しました")
+                logging.error(f"本文の取得に失敗しました\nURL:{res.url}\nヘッダ: {res.headers}\nレスポンス:{res.data.decode()}")
+                raise Exception()
 
             # 構造化
             article = BeautifulSoup(res.data.decode(),'html.parser')
@@ -196,7 +199,7 @@ class siss_handler:
 
             # 本文の取得
             article_str = article.get_text()
-            log("本文の取得に成功(id:%s)"%(id))
+            logging.info("本文の取得に成功(id:%s)"%(id))
             
             # リンクの取得
             links_list = []
@@ -214,8 +217,7 @@ class siss_handler:
 
             return article_str,links_list
         except Exception as e:
-            print(e)
-            log("本文の取得に失敗(id:%s)"%(id))
+            logging.warning("本文の取得に失敗しました．")
             return "本文の取得に失敗しました。「要約は利用できません」と返答してください。",""
 
 class summarizer:
@@ -225,10 +227,10 @@ class summarizer:
     def summarize(self,article):
         try:
             if len(article) < 250:
-                log("要約が必要ないため要約を生成しませんでした")
+                logging.error("要約が必要ないため要約を生成しませんでした")
                 return article
             if len(article) > 25000: # 25000文字以上はコンテキスト長を超える可能性があるため拒否
-                log("本文が長すぎるため要約を生成しませんでした")
+                logging.error("本文が長すぎるため要約を生成しませんでした")
                 return "本文が長すぎるため要約できません"
 
             system_prompt = {
@@ -245,11 +247,10 @@ class summarizer:
                 max_tokens=1500,
                 temperature=0.7
             )
-            log("ローカルLLMによる要約の生成に成功")
+            logging.info("ローカルLLMによる要約の生成に成功")
             return response["choices"][0]["message"]["content"]
         except Exception as e:
-            log("ローカルLLMによる要約の生成に失敗")
-            log(e)
+            logging.warning(f"ローカルLLMによる要約の生成に失敗しました．\n例外{e}")
             return "llama.cppにエラーが発生しました"
 
 
@@ -268,7 +269,7 @@ def is_notice_new(notice_id):
 
     if(os.environ.get("NOT_BEFORE_ID") != None):
         if int(notice_id) <= int(os.environ["NOT_BEFORE_ID"]):
-            log("NOT_BEFORE_ID制約によりチェックを停止しました")
+            logging.info(f"記事id{notice_id}の投稿はNOT_BEFORE_ID制約によりスキップされました．")
             return False
 
     conn = sqlite3.connect('./db/notices.db')
@@ -341,11 +342,11 @@ def send_to_discord(category,date,title,link,summary,article,links):
 
         # 送信に成功したかチェック
         if res.status >= 200 and res.status <= 299:
-            log("Discordへの投稿に成功しました")
+            logging.info("Discordへの投稿に成功しました")
         else:
             raise Exception(res.status)
     except:
-        log(f"Discordへの投稿に失敗しました．status:{res.status}")
+        logging.error(f"Discordへの投稿に失敗しました\nURL:{res.url}\nヘッダ: {res.headers}\nレスポンス:{res.data.decode()}")
 
 
 # Slackに通知を送信
@@ -379,16 +380,16 @@ def send_to_slack(category,date,title,link,summary,article,links):
             body=json.dumps(template).encode()
             )
 
-        if res.status <= 200 and res.status >= 299:
-            log("Slackへの投稿に成功しました")
+        if res.status >= 200 and res.status <= 299:
+            logging.info("Slackへの投稿に成功しました")
         else:
             raise Exception("res.status")
     except:
-        log(f"Slackへの投稿に失敗しました．status: {res.status}")
+        logging.error(f"Slackへの投稿に失敗しました．\nURL:{res.url}\nヘッダ: {res.headers}\nレスポンス:{res.data.decode()}")
 
 
 if __name__ == '__main__':
-    log("ジョブを開始しました")
+    logging.info("ジョブを開始しました")
     try:
         # DBを初期化する
         init_db()
@@ -403,14 +404,14 @@ if __name__ == '__main__':
             for notice in handler.get_notice(type=category):
                 if is_notice_new(notice['id']): # 新規のお知らせのみを抽出
                     notices.append(notice)
-                    log("新しいお知らせ: %s"%(notice['id']))
+                    logging.info("新しいお知らせ: %s"%(notice['id']))
 
         if len(notices) > 0:
             # SLMサマライザを初期化する
             slm = summarizer()
 
             for notice in notices:
-                log("処理開始: %s"%(notice['id']))
+                logging.info("処理開始: %s"%(notice['id']))
                 # 本文の取得
                 article,links = handler.get_article(notice['id'])
                 article = clean_text(article)
@@ -435,11 +436,10 @@ if __name__ == '__main__':
 
                 # 完了済みリストに追加
                 add_notice_to_db(notice['id'])
-                log("処理が完了しました: %s"%(notice['id']))
+                logging.info("処理が完了しました: %s"%(notice['id']))
 
 
     except Exception as e:
-        log("例外が発生しました")
-        log(e)
+        logging.critical(f"例外が発生しました．\n例外:{e}")
         pass
-    log("ジョブを終了しました")
+    logging.info("ジョブを終了しました")
