@@ -327,6 +327,15 @@ def send_to_discord(category,date,title,link,summary,article,links):
                     'url': i['uri'],
                     'color': 15174544
                     })
+    # 埋め込みは最大10件
+    if len(embeds) >= 10:
+        embeds = embeds[:9]
+        embeds.append({
+                    'title': "省略",
+                    'description': "Discordの仕様により10件以上のリンクが掲載できません．\nお知らせを直接確認してください",
+                    'url': "https://siss.iisec.ac.jp",
+                    'color': 15174544
+                    })
 
     template = json.loads('{"content":"","embeds":[],"attachments":[]}')
     template['content'] = f'# {title}\n🔖カテゴリ: {category}\n📅日付: {date}\n📋記事: [{title}]({link})\n🦊要約:```{summary}```\n\n📎リンク一覧:'
