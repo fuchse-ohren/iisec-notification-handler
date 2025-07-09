@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from llama_cpp import Llama
 
 # version
-program_version = "20250709"
+program_version = "20250709-1"
 
 # urllib3の証明書エラーを抑制
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -65,7 +65,7 @@ class siss_handler:
             }
             res = http.request(method, url,headers=headers,redirect=False)
             if res.status != 200:
-                logging.critical(f"お知らせの一覧取得に失敗しました\nURL:{res.url}\nヘッダ: {res.headers}\nレスポンス:{res.data.decode()}")
+                logging.critical(f"お知らせの一覧取得に失敗しました\nステータス:{res.status}\nレスポンス:{res.data.decode()}")
                 raise Exception()
 
             # bs4による解析
@@ -194,7 +194,7 @@ class siss_handler:
             }
             res = http.request(method, url,headers=headers,redirect=False)
             if res.status != 200:
-                logging.error(f"本文の取得に失敗しました\nURL:{res.url}\nヘッダ: {res.headers}\nレスポンス:{res.data.decode()}")
+                logging.error(f"本文の取得に失敗しました\nステータス:{res.status}\nレスポンス:{res.data.decode()}")
                 raise Exception()
 
             # 構造化
@@ -350,7 +350,7 @@ def send_to_discord(category,date,title,link,summary,article,links):
         else:
             raise Exception(res.status)
     except:
-        logging.error(f"Discordへの投稿に失敗しました\nURL:{res.url}\nヘッダ: {res.headers}\nレスポンス:{res.data.decode()}")
+        logging.error(f"Discordへの投稿に失敗しました\nステータス:{res.status}\nレスポンス:{res.data.decode()}")
 
 
 # Slackに通知を送信
@@ -389,7 +389,7 @@ def send_to_slack(category,date,title,link,summary,article,links):
         else:
             raise Exception("res.status")
     except:
-        logging.error(f"Slackへの投稿に失敗しました．\nURL:{res.url}\nヘッダ: {res.headers}\nレスポンス:{res.data.decode()}")
+        logging.error(f"Slackへの投稿に失敗しました．\nステータス:{res.status}\nレスポンス:{res.data.decode()}")
 
 
 if __name__ == '__main__':
