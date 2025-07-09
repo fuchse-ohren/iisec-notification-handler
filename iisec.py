@@ -5,6 +5,10 @@ from bs4 import BeautifulSoup
 from groq import Groq
 from llama_cpp import Llama
 
+# version
+program_version = "20250709"
+
+# urllib3の証明書エラーを抑制
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logging.basicConfig(
@@ -389,7 +393,8 @@ def send_to_slack(category,date,title,link,summary,article,links):
 
 
 if __name__ == '__main__':
-    logging.info("ジョブを開始しました")
+    logging.info(f"iisec notification handler (version:{program_version})")
+    logging.info("ジョブを開始しました．")
     try:
         # DBを初期化する
         init_db()
