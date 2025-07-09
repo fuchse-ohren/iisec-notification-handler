@@ -21,5 +21,6 @@ NOT_BEFORE_ID: # 現在最新の記事IDを入力すると，それ以前の記�
 
 ## コンテナの立ち上げ
 ```
+$ docker-compose build
 $ docker-compose up
 ```
