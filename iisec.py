@@ -2,7 +2,6 @@ import urllib3,re,requests,pdfplumber,sqlite3,json,logging,os
 from urllib.parse import urljoin
 from datetime import datetime
 from bs4 import BeautifulSoup
-from groq import Groq
 from llama_cpp import Llama
 
 # version
