@@ -11,12 +11,12 @@ program_version = "20250709"
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logging.basicConfig(
-    '''
+    """
     info: デバッグや動作ログなど
     error: 処理の続行が可能なエラー
     warning: 処理の続行が可能な重度のエラー
     critical: 発生した時点でプログラムを停止させるようなエラー
-    '''
+    """
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
