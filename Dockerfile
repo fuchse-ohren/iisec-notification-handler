@@ -7,7 +7,7 @@ RUN pip install -r ./requirements.txt
 
 RUN mkdir /usr/src/app/model
 WORKDIR /usr/src/app/model
-RUN wget -O "tinyswallow-1.5b-instruct-q8_0.gguf" "https://huggingface.co/SakanaAI/TinySwallow-1.5B-Instruct-GGUF/resolve/main/tinyswallow-1.5b-instruct-q8_0.gguf?download=true"
+RUN wget -O "gemma-2-2b-jpn-it-Q2_K.gguf" "https://huggingface.co/tensorblock/gemma-2-2b-jpn-it-GGUF/resolve/main/gemma-2-2b-jpn-it-Q2_K.gguf?download=true"
 
 WORKDIR /usr/src/app
 CMD [ "python", "daemon.py" ]

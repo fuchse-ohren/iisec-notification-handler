@@ -8,7 +8,7 @@ services:
     environment:
       IISEC_ID: ""
       IISEC_PW: ""
-      MODEL_PATH: "./model/tinyswallow-1.5b-instruct-q8_0.gguf"
+      MODEL_PATH: "./model/gemma-2-2b-jpn-it-Q2_K.gguf"
       DISCORD_WEBHOOK: 
       SLACK_WEBHOOK:
       NOT_BEFORE_ID:
