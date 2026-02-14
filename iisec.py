@@ -1,11 +1,14 @@
-import urllib3,re,requests,pdfplumber,sqlite3,json,logging,os
+import urllib3,re,requests,sqlite3,json,logging,os
 from urllib.parse import urljoin
 from datetime import datetime
 from bs4 import BeautifulSoup
 from llama_cpp import Llama
+from marker.converters.pdf import PdfConverter
+from marker.models import create_model_dict
+from marker.output import text_from_rendered
 
 # version
-program_version = "20250709-1"
+program_version = "20260214-01"
 
 # urllib3の証明書エラーを抑制
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -167,14 +170,17 @@ class siss_handler:
 
             # pdfファイルをテキスト化
             content = ""
-            with pdfplumber.open(filename) as pdf:
-                for page in pdf.pages:
-                    t = page.extract_text()
-                    if t:
-                        content += t
+            converter = PdfConverter(artifact_dict=create_model_dict())
+            rendered = converter("./tmp.pdf")
+            content, _, images = text_from_rendered(rendered)
+            #with pdfplumber.open(filename) as pdf:
+            #    for page in pdf.pages:
+            #        t = page.extract_text()
+            #        if t:
+            #            content += t
             
             os.remove('./tmp.pdf')
-            return t
+            return content
         
 
         except Exception as e:
